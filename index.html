@@ -345,6 +345,7 @@ function exportInvGroupedPDF(mode, opts={}){
   `).join('');
 
   const periodLabel = opts.period === 'today' ? 'Hoy'
+                       : opts.period === 'this_week' ? 'Esta Semana'
                        : opts.period === 'this_month' ? 'Este mes'
                        : opts.period === 'this_year' ? 'Este año'
                        : 'Todo';
@@ -396,6 +397,9 @@ function currentPeriodFilter(){
 function wireTechExportButtons(){
   document.getElementById('btnTechDayCSV').onclick   = ()=> exportInvGroupedCSV('day'  , { tech: currentTechFilter(), period: currentPeriodFilter() });
   document.getElementById('btnTechDayPDF').onclick   = ()=> exportInvGroupedPDF('day'  , { tech: currentTechFilter(), period: currentPeriodFilter() });
+
+  document.getElementById('btnTechDayCSV').onclick   = ()=> exportInvGroupedCSV('week'  , { tech: currentTechFilter(), period: currentPeriodFilter() });
+  document.getElementById('btnTechDayPDF').onclick   = ()=> exportInvGroupedPDF('week'  , { tech: currentTechFilter(), period: currentPeriodFilter() });
 
   document.getElementById('btnTechHourCSV').onclick  = ()=> exportInvGroupedCSV('hour' , { tech: currentTechFilter(), period: currentPeriodFilter() });
   document.getElementById('btnTechHourPDF').onclick  = ()=> exportInvGroupedPDF('hour' , { tech: currentTechFilter(), period: currentPeriodFilter() });
