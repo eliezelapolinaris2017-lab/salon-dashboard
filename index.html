@@ -1,0 +1,168 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+/* app.js (compacto) — Exportaciones por Técnica / Día / Mes / Año */
+
+const S = {
+  key:k=>`salon.${k}`,
+  load:(k,def)=>{ try { return JSON.parse(localStorage.getItem(S.key(k))) ?? def } catch { return def } },
+  save:(k,v)=>localStorage.setItem(S.key(k), JSON.stringify(v)),
+  csv:(rows)=>rows.map(r=>r.map(x=>`"${(x??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'),
+  download:(name,content,type)=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+};
+
+// Estado mínimo que usa el módulo (adapta a tu estructura existente)
+const state = {
+  cfg: S.load('cfg', { font: 'Inter, system-ui' }),
+  invoices: S.load('invoices', []) // [{date:'2025-09-16', time:'14:00', tech:'Cynthia', amount:120, ...}]
+};
+
+// Helpers de período
+function getPeriodRange(period){
+  const now = new Date();
+  const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear  = new Date(now.getFullYear(), 0, 1);
+  if(period === 'today')      return {from: startOfDay,   to: new Date(startOfDay.getFullYear(), startOfDay.getMonth(), startOfDay.getDate()+1)};
+  if(period === 'this_month') return {from: startOfMonth, to: new Date(now.getFullYear(), now.getMonth()+1, 1)};
+  if(period === 'this_year')  return {from: startOfYear,  to: new Date(now.getFullYear()+1, 0, 1)};
+  return null; // 'all'
+}
+function periodLabel(p){
+  return p==='today'?'Hoy':p==='this_month'?'Este mes':p==='this_year'?'Este año':'Todo';
+}
+
+// Filtros actuales (lee desde tus <select>)
+const currentTech   = () => (document.getElementById('invTechFilter')?.value)||'(todas)';
+const currentPeriod = () => (document.getElementById('invPeriodFilter')?.value)||'all';
+
+// Filtrar + agrupar
+function groupInvoices(mode, {tech=null, period='all'} = {}){
+  const pr = getPeriodRange(period);
+  let list = state.invoices.slice();
+
+  if (pr) {
+    list = list.filter(i => {
+      const d = new Date(i.date);
+      return (!pr.from || d >= pr.from) && (!pr.to || d < pr.to);
+    });
+  }
+  if (tech && tech !== '(todas)') {
+    list = list.filter(i => (i.tech||'') === tech);
+  }
+
+  const keyFn =
+    mode==='tech'  ? (i)=> i.tech || '(sin técnica)' :
+    mode==='day'   ? (i)=> i.date || '(sin fecha)'   :
+    mode==='month' ? (i)=> (i.date? i.date.slice(0,7) : '(sin mes)') :
+    mode==='year'  ? (i)=> (i.date? i.date.slice(0,4) : '(sin año)') :
+    mode==='hour'  ? (i)=> (i.time ? (i.time.slice(0,2)+':00') : '(sin hora)') :
+                     (i)=> '(otro)';
+
+  const map = {};
+  for (const i of list) {
+    const k = keyFn(i);
+    const amt = (+i.amount||0);
+    (map[k] ??= { key:k, count:0, total:0 }).count++;
+    map[k].total += amt;
+  }
+  return Object.values(map).sort((a,b)=> b.total - a.total || String(a.key).localeCompare(String(b.key)));
+}
+
+// ===== Exports =====
+function exportGroupedCSV(mode, opts={}){
+  const nice = ({tech:'Técnica', day:'Día', month:'Mes', year:'Año', hour:'Hora'})[mode] || mode;
+  const data = groupInvoices(mode, opts);
+  const rows = [[nice,'Cantidad','Total ($)']];
+  data.forEach(r => rows.push([r.key, r.count, r.total.toFixed(2)]));
+  const techSuffix = opts.tech && opts.tech!=='(todas)' ? `-${opts.tech.replace(/\s+/g,'_')}` : '';
+  const perSuffix  = `-${(opts.period||'all')}`;
+  S.download(`cobros-por-${mode}${techSuffix}${perSuffix}.csv`, S.csv(rows), 'text/csv');
+}
+
+function exportGroupedPDF(mode, opts={}){
+  const nice = ({tech:'Técnica', day:'Día', month:'Mes', year:'Año', hour:'Hora'})[mode] || mode;
+  const data = groupInvoices(mode, opts);
+  const sumTotal = data.reduce((a,x)=>a+x.total,0);
+  const sumCount = data.reduce((a,x)=>a+x.count,0);
+  const rows = data.map(r=>`
+    <tr>
+      <td>${r.key}</td>
+      <td style="text-align:right">${r.count}</td>
+      <td style="text-align:right">$${r.total.toFixed(2)}</td>
+    </tr>`).join('');
+  const xTech = (opts.tech && opts.tech!=='(todas)') ? ` — Técnica: ${opts.tech}` : '';
+  const xPer  = `Periodo: ${periodLabel(opts.period||'all')}`;
+
+  const html = `
+  <html><head><meta charset="utf-8"><title>Cobros por ${nice}</title>
+  <style>
+    @page{ size:A4 landscape; margin:12mm }
+    body{ font-family:${state.cfg.font||'system-ui'}; color:#111 }
+    h1{ margin:0 0 8px 0; font-size:18px }
+    .meta{ color:#555; margin-bottom:8px }
+    table{ width:100%; border-collapse:collapse; font-size:12px }
+    th,td{ border:1px solid #cfcfcf; padding:6px 8px }
+    th{ background:#f3f3f3; text-align:left }
+    tfoot td{ font-weight:700; background:#fafafa }
+  </style></head><body>
+    <h1>Historial de Cobros — ${nice}${xTech}</h1>
+    <div class="meta">${xPer} · Generado: ${new Date().toLocaleString()}</div>
+    <table>
+      <thead><tr><th>${nice}</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${rows||''}</tbody>
+      <tfoot><tr><td>TOTAL</td><td style="text-align:right">${sumCount}</td><td style="text-align:right">$${sumTotal.toFixed(2)}</td></tr></tfoot>
+    </table>
+  </body></html>`;
+  // Usa ventana de impresión (rápido y liviano)
+  const w = window.open('','print'); w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print();
+}
+
+// ===== Wire up (conecta a tus botones) =====
+function currentOpts(){ return { tech: currentTech(), period: currentPeriod() }; }
+
+// Técnica específica
+document.getElementById('btnTechDayCSV')   ?.addEventListener('click', ()=>exportGroupedCSV('day'  , currentOpts()));
+document.getElementById('btnTechDayPDF')   ?.addEventListener('click', ()=>exportGroupedPDF('day'  , currentOpts()));
+document.getElementById('btnTechMonthCSV') ?.addEventListener('click', ()=>exportGroupedCSV('month', currentOpts()));
+document.getElementById('btnTechMonthPDF') ?.addEventListener('click', ()=>exportGroupedPDF('month', currentOpts()));
+document.getElementById('btnTechYearCSV')  ?.addEventListener('click', ()=>exportGroupedCSV('year' , currentOpts()));
+document.getElementById('btnTechYearPDF')  ?.addEventListener('click', ()=>exportGroupedPDF('year' , currentOpts()));
+
+// Agrupados generales (sin fijar técnica)
+document.getElementById('btnExportInvByTechCSV') ?.addEventListener('click', ()=>exportGroupedCSV('tech' , {period: currentPeriod()}));
+document.getElementById('btnExportInvByTechPDF') ?.addEventListener('click', ()=>exportGroupedPDF('tech' , {period: currentPeriod()}));
+document.getElementById('btnExportInvByDayCSV')  ?.addEventListener('click', ()=>exportGroupedCSV('day'  , {period: currentPeriod()}));
+document.getElementById('btnExportInvByDayPDF')  ?.addEventListener('click', ()=>exportGroupedPDF('day'  , {period: currentPeriod()}));
+document.getElementById('btnExportInvByHourCSV') ?.addEventListener('click', ()=>exportGroupedCSV('hour' , {period: currentPeriod()}));
+document.getElementById('btnExportInvByHourPDF') ?.addEventListener('click', ()=>exportGroupedPDF('hour' , {period: currentPeriod()}));
+
+// ===== Rellena el <select> de técnica desde tus datos (opcional) =====
+(function hydrateTechFilter(){
+  const sel = document.getElementById('invTechFilter');
+  if (!sel) return;
+  const techs = Array.from(new Set(state.invoices.map(i=>i.tech||''))).filter(Boolean).sort();
+  sel.innerHTML = ['(todas)', ...techs].map(t=>`<option>${t}</option>`).join('');
+})();
+  <label for="invTechFilter">Técnica</label>
+<select id="invTechFilter"></select>
+
+<label for="invPeriodFilter">Periodo</label>
+<select id="invPeriodFilter">
+  <option value="all">Todo</option>
+  <option value="today">Hoy</option>
+  <option value="this_month">Este mes</option>
+  <option value="this_year">Este año</option>
+</select>
+
+<button class="btn small" id="btnTechDayPDF">PDF Día (Técnica)</button>
+<button class="btn small" id="btnTechDayCSV">Excel Día (Técnica)</button>
+<button class="btn small" id="btnTechMonthPDF">PDF Mes (Técnica)</button>
+<button class="btn small" id="btnTechMonthCSV">Excel Mes (Técnica)</button>
+<button class="btn small" id="btnTechYearPDF">PDF Año (Técnica)</button>
+<button class="btn small" id="btnTechYearCSV">Excel Año (Técnica)</button>
+
+<button class="btn small" id="btnExportInvByTechPDF">PDF por Técnica (General)</button>
+<button class="btn small" id="btnExportInvByTechCSV">Excel por Técnica (General)</button>
+<button class="btn small" id="btnExportInvByDayPDF">PDF por Día (General)</button>
+<button class="btn small" id="btnExportInvByDayCSV">Excel por Día (General)</button>
+<button class="btn small" id="btnExportInvByHourPDF">PDF por Hora (General)</button>
+<button class="btn small" id="btnExportInvByHourCSV">Excel por Hora (General)</button>
