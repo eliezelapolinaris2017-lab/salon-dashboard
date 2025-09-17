@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Salon Pro — Dashboard</title>
+<style>
+/* ====== CSS Base / Theming ====== */
+:root{
+  --bg:#0f0f12;
+  --fg:#ffffff;
+  --muted:#a7a7b1;
+  --primary:#6ee7b7;
+  --topbar:#15151b;
+  --card:#1a1b23;
+  --btn:#26283a;
+  --accent:#93c5fd;
+  --danger:#ef4444;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+
+  --menu-radius:16px;
+  --menu-blur:10px;
+  --menu-shadow:0 10px 30px rgba(0,0,0,.35);
+  --menu-card:rgba(255,255,255,.04);
+  --menu-border:1px solid rgba(255,255,255,.10);
+  --menu-cols:2;
+  --menu-icon:22px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg) no-repeat center/cover;
+  color:var(--fg);font-family:var(--font);
+}
+.topbar{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:center;gap:.6rem;
+  padding:.6rem .9rem;background:var(--topbar);border-bottom:1px solid #00000055;
+}
+.logo{ width:34px;height:34px;border-radius:6px;object-fit:contain;background:#0003;display:inline-block }
+.title{font-weight:700;letter-spacing:.2px}
+.spacer{flex:1}
+.btn{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.55rem .8rem;border-radius:10px;border:1px solid #00000066;
+  background:var(--btn);color:var(--fg);cursor:pointer;font-weight:600;
+}
+.btn.small{padding:.35rem .6rem;font-size:.9rem;border-radius:8px}
+.btn.ghost{background:transparent}
+.btn.primary{background:var(--accent)}
+.btn.ok{background:var(--ok)}
+.btn.warn{background:var(--warn)}
+.btn.danger{background:var(--danger)}
+.hidden{display:none !important}
+.container{max-width:1000px;margin:1rem auto;padding:0 1rem}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;padding:1rem;margin:.7rem 0;
+  box-shadow:0 12px 28px rgba(0,0,0,.28);
+}
+.grid{display:grid;gap:1rem}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+label{display:block;margin:.4rem 0 .2rem;color:var(--muted);font-size:.9rem}
+input,select,textarea{
+  width:100%;padding:.55rem .6rem;border-radius:10px;border:1px solid #00000055;background:#0f1017;color:var(--fg)
+}
+input[type="color"]{padding:.2rem;height:38px}
+.row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.kbd{background:#0002;border:1px solid #0003;border-radius:6px;padding:.1rem .35rem;font-size:.85rem}
+
+/* Tablas */
+table{width:100%;border-collapse:collapse}
+th,td{padding:.55rem;border-bottom:1px solid #00000055}
+th{color:var(--muted);text-align:left}
+
+/* Print styles (PDF) */
+@media print{
+  body{background:#fff;color:#000}
+  .topbar,.btn,.no-print{display:none !important}
+  .card{border:1px solid #ddd}
+}
+</style>
+</head>
+<body>
+  <!-- ===== Topbar ===== -->
+  <div class="topbar no-print">
+    <div class="title" id="salonName">Mi Salón</div>
+    <span class="spacer"></span>
+    <!-- Puedes poner más botones si tienes -->
+  </div>
+
+  <div class="container">
+    <!-- Otras secciones… -->
+
+    <!-- ===== Cobros / Facturas ===== -->
+    <section id="viewBilling">
+      <div class="row"><!-- Botón para regresar u otras acciones si usas navegación -->
+        <!-- … -->
+      </div>
+      <div class="card">
+        <h3>Nuevo cobro / factura</h3>
+        <!-- Form para nueva factura -->
+        <div class="grid two">
+          <div><label>Fecha</label><input type="date" id="invDate"></div>
+          <div><label>Hora</label><input type="time" id="invTime"></div>
+          <div><label>Cliente</label><input id="invClient"></div>
+          <div><label>Teléfono</label><input id="invPhone"></div>
+          <div><label>Servicio</label><input id="invService" list="servicesList"></div>
+          <div><label>Técnica</label><select id="invTech"></select></div>
+          <div><label>Método de pago</label><select id="invPay"><option>ATH Móvil</option><option>Cash</option><option>Tarjeta</option></select></div>
+          <div><label>Monto</label><input id="invAmount" type="number" step="0.01"></div>
+        </div>
+        <div class="row" style="margin-top:.6rem">
+          <button class="btn ok" id="btnSaveInv">💾 Guardar & Enviar a Hoja</button>
+          <button class="btn" id="btnInvoicePDF">🖨️ PDF</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Historial de cobros</h3>
+        <div class="row">
+          <button class="btn small" id="btnExportInvPDF">🖨️ PDF</button>
+          <button class="btn small" id="btnExportInvJSON">💾 JSON</button>
+          <button class="btn small" id="btnExportInvCSV">📄 CSV</button>
+          <input type="file" id="importInvJSON" class="no-print" accept="application/json">
+
+          <!-- ===== NUEVOS: Filtros para técnica única seleccionada ===== -->
+          <label for="invTechFilter">Técnica</label>
+          <select id="invTechFilter" title="Filtrar por técnica">
+            <option value="(todas)">(todas)</option>
+          </select>
+
+          <label for="invPeriodFilter">Periodo</label>
+          <select id="invPeriodFilter" title="Filtrar por periodo">
+            <option value="all">Todo</option>
+            <option value="today">Hoy</option>
+            <option value="this_month">Este mes</option>
+            <option value="this_year">Este año</option>
+          </select>
+
+          <!-- ===== NUEVOS: Botones para exportar por técnica seleccionada ===== -->
+          <button class="btn small" id="btnTechDayPDF">🖨️ PDF Día (Técnica)</button>
+          <button class="btn small" id="btnTechDayCSV">📄 CSV Día (Técnica)</button>
+
+          <button class="btn small" id="btnTechHourPDF">🖨️ PDF Hora (Técnica)</button>
+          <button class="btn small" id="btnTechHourCSV">📄 CSV Hora (Técnica)</button>
+
+          <button class="btn small" id="btnTechMonthPDF">🖨️ PDF Mes (Técnica)</button>
+          <button class="btn small" id="btnTechMonthCSV">📄 CSV Mes (Técnica)</button>
+
+          <button class="btn small" id="btnTechYearPDF">🖨️ PDF Año (Técnica)</button>
+          <button class="btn small" id="btnTechYearCSV">📄 CSV Año (Técnica)</button>
+        </div>
+
+        <table id="tblInv">
+          <thead>
+            <tr>
+              <th>#</th><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Técnica</th><th>Método</th><th>Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Filas de facturas generadas aquí -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Otras secciones… Agenda, Configuración, etc. -->
+  </div>
+
+<script>
+// ====== Estado mínimo necesario + utilidades ======
+const S = {
+  key:k=>`salon.${k}`,
+  load:(k,def)=>{ try{ return JSON.parse(localStorage.getItem(S.key(k))) ?? def }catch{return def} },
+  save:(k,v)=>localStorage.setItem(S.key(k),JSON.stringify(v)),
+  uid:()=>Math.random().toString(36).slice(2),
+  today:()=>new Date().toISOString().slice(0,10),
+  nowTime:()=>new Date().toTimeString().slice(0,5),
+  pad:n=>n.toString().padStart(2,'0'),
+  csv:(rows)=> rows.map(r=> r.map(x=> `"${(x??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'),
+  download:(name,content,type='application/json')=>{
+    const a=document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content],{type}));
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  notify:(msg)=>{ alert(msg); console.log(msg); }
+};
+
+const state = {
+  techs: S.load('techs',['General']), 
+  invoices: S.load('invoices',[]),
+  cfg: S.load('cfg',{
+    invoice:{ prefix:'INV-', next:1, title:'Factura / Recibo', footer:'Gracias por su preferencia.' },
+    business:{ name:'Mi Salón', address:'', phone:'', email:'', website:'', taxId:'' }
+  }),
+  lastInvId: S.load('lastInvId',null)
+};
+
+function persistAll(){
+  S.save('techs', state.techs);
+  S.save('invoices', state.invoices);
+  S.save('cfg', state.cfg);
+  S.save('lastInvId', state.lastInvId);
+}
+
+// ====== Inicialización de UI ======
+
+function refreshTechs(){
+  const selInvTech = document.getElementById('invTech');
+  const selFilter = document.getElementById('invTechFilter');
+  if(selInvTech){
+    selInvTech.innerHTML = state.techs.map(t=> `<option>${t}</option>` ).join('');
+  }
+  if(selFilter){
+    selFilter.innerHTML = state.techs.map(t=> `<option>${t}</option>`).concat().map((opt,index)=>{
+      // Añadir opción "(todas)" si no está ya
+      if(index===0){
+        return `<option value="(todas)">(todas)</option>`;
+      } else return `<option>${state.techs[index-1]}</option>`;
+    }).join('');
+    // Asegurar que "(todas)" esté al inicio
+    // (ya lo es por la lógica anterior)
+  }
+}
+
+// Render tabla de facturas
+function renderBillingTable(){
+  const tblBody = document.getElementById('tblInv').querySelector('tbody');
+  if(!tblBody) return;
+  tblBody.innerHTML = state.invoices.map(inv=>{
+    return `<tr data-id="${inv.id || ''}">
+      <td>${inv.number || ''}</td>
+      <td>${inv.date || ''}</td>
+      <td>${inv.time || ''}</td>
+      <td>${inv.client || ''}</td>
+      <td>${inv.tech || ''}</td>
+      <td>${inv.pay || ''}</td>
+      <td>$${(+inv.amount || 0).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ==== Lógica de agrupaciones y exportaciones =====
+
+function getPeriodRange(period){
+  const now = new Date();
+  const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear  = new Date(now.getFullYear(), 0, 1);
+  if(period==='today')      return { from: startOfDay,                     to: new Date(startOfDay.getFullYear(), startOfDay.getMonth(), startOfDay.getDate()+1) };
+  if(period==='this_month') return { from: startOfMonth,                   to: new Date(now.getFullYear(), now.getMonth()+1, 1) };
+  if(period==='this_year')  return { from: startOfYear,                    to: new Date(now.getFullYear()+1, 0, 1) };
+  return null; // 'all'
+}
+
+function groupInvoices(mode, opts={}){
+  const { tech=null, period='all' } = opts;
+  let list = state.invoices.slice();
+
+  // Filtro por periodo
+  const pr = getPeriodRange(period);
+  if(pr){
+    list = list.filter(i=>{
+      const d = new Date(i.date);
+      return (!pr.from || d >= pr.from) && (!pr.to || d < pr.to);
+    });
+  }
+
+  // Filtro por técnica
+  if(tech && tech !== '(todas)'){
+    list = list.filter(i=> i.tech === tech);
+  }
+
+  // Definir clave según modo
+  const keyFn = mode === 'day' 
+    ? i => i.date 
+    : mode === 'hour' 
+      ? i => i.time ? i.time.slice(0,2) + ':00' : '(sin hora)'
+      : mode === 'month'
+        ? i => i.date ? i.date.slice(0,7) : '(sin mes)'  // YYYY-MM
+        : mode === 'year'
+          ? i => i.date ? i.date.slice(0,4) : '(sin año)'
+          : i => i.date;
+
+  const map = {};
+  for(const inv of list){
+    const key = keyFn(inv);
+    const amt = +inv.amount || 0;
+    if(!map[key]) map[key] = { key, count:0, total:0 };
+    map[key].count += 1;
+    map[key].total += amt;
+  }
+  const arr = Object.values(map);
+  // Opcional: ordenar por la clave
+  arr.sort((a,b)=> {
+    if(a.key < b.key) return -1;
+    if(a.key > b.key) return 1;
+    return 0;
+  });
+  return arr;
+}
+
+function exportInvGroupedCSV(mode, opts={}){
+  const nice = mode === 'day' ? 'Día'
+             : mode === 'hour' ? 'Hora'
+             : mode === 'month' ? 'Mes'
+             : mode === 'year' ? 'Año'
+             : mode;
+
+  const data = groupInvoices(mode, opts);
+  const rows = [
+    [nice, 'Cantidad', 'Total ($)'],
+    ...data.map(r=> [r.key, r.count, r.total.toFixed(2)])
+  ];
+  const techpart = opts.tech && opts.tech !== '(todas)' ? `-${opts.tech.replace(/\s+/g,'_')}` : '';
+  const periodpart = opts.period || 'all';
+  const filename = `cobros_por_${nice}${techpart}_${periodpart}.csv`;
+  S.download(filename, S.csv(rows), 'text/csv');
+}
+
+function exportInvGroupedPDF(mode, opts={}){
+  const nice = mode === 'day' ? 'Día'
+             : mode === 'hour' ? 'Hora'
+             : mode === 'month' ? 'Mes'
+             : mode === 'year' ? 'Año'
+             : mode;
+
+  const data = groupInvoices(mode, opts);
+  const sumTotal = data.reduce((acc,x)=> acc + x.total, 0);
+  const sumCount = data.reduce((acc,x)=> acc + x.count, 0);
+
+  const rowsHtml = data.map(r=> `
+    <tr>
+      <td>${r.key}</td>
+      <td style="text-align:right">${r.count}</td>
+      <td style="text-align:right">$${r.total.toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const periodLabel = opts.period === 'today' ? 'Hoy'
+                       : opts.period === 'this_month' ? 'Este mes'
+                       : opts.period === 'this_year' ? 'Este año'
+                       : 'Todo';
+
+  const titleExtra = opts.tech && opts.tech !== '(todas)' ? ` — Técnica: ${opts.tech}` : '';
+
+  const html = `
+  <html><head><meta charset="utf-8"><title>Cobros por ${nice}${titleExtra}</title>
+    <style>
+      @page{ size:A4 landscape; margin:12mm }
+      body{ font-family:Arial, sans-serif; color:#111; }
+      h1{ margin-bottom:8px; }
+      .meta{ margin-bottom:12px; color:#555; }
+      table{ width:100%; border-collapse:collapse; font-size:12px; }
+      th, td{ border:1px solid #ccc; padding:6px; }
+      th{ background:#f3f3f3; text-align:left; }
+      tfoot td{ font-weight:700; background:#fafafa; }
+    </style>
+  </head><body>
+    <h1>Historial de Cobros — Agrupado por ${nice}${titleExtra}</h1>
+    <div class="meta">Periodo: ${periodLabel} · Generado: ${new Date().toLocaleString()}</div>
+    <table>
+      <thead><tr><th>${nice}</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Total ($)</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr><td>TOTAL</td><td style="text-align:right">${sumCount}</td><td style="text-align:right">$${sumTotal.toFixed(2)}</td></tr></tfoot>
+    </table>
+  </body></html>
+  `;
+
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+// ===== Funciones para botones nuevos =====
+
+function currentTechFilter(){
+  const sel = document.getElementById('invTechFilter');
+  return sel ? sel.value : '(todas)';
+}
+
+function currentPeriodFilter(){
+  const sel = document.getElementById('invPeriodFilter');
+  return sel ? sel.value : 'all';
+}
+
+function wireTechExportButtons(){
+  document.getElementById('btnTechDayCSV').onclick   = ()=> exportInvGroupedCSV('day'  , { tech: currentTechFilter(), period: currentPeriodFilter() });
+  document.getElementById('btnTechDayPDF').onclick   = ()=> exportInvGroupedPDF('day'  , { tech: currentTechFilter(), period: currentPeriodFilter() });
+
+  document.getElementById('btnTechHourCSV').onclick  = ()=> exportInvGroupedCSV('hour' , { tech: currentTechFilter(), period: currentPeriodFilter() });
+  document.getElementById('btnTechHourPDF').onclick  = ()=> exportInvGroupedPDF('hour' , { tech: currentTechFilter(), period: currentPeriodFilter() });
+
+  document.getElementById('btnTechMonthCSV').onclick = ()=> exportInvGroupedCSV('month', { tech: currentTechFilter(), period: currentPeriodFilter() });
+  document.getElementById('btnTechMonthPDF').onclick = ()=> exportInvGroupedPDF('month', { tech: currentTechFilter(), period: currentPeriodFilter() });
+
+  document.getElementById('btnTechYearCSV').onclick  = ()=> exportInvGroupedCSV('year' , { tech: currentTechFilter(), period: currentPeriodFilter() });
+  document.getElementById('btnTechYearPDF').onclick  = ()=> exportInvGroupedPDF('year' , { tech: currentTechFilter(), period: currentPeriodFilter() });
+}
+
+// ===== Guardar nueva factura / inline, etc. =====
+
+document.getElementById('btnSaveInv').onclick = ()=>{
+  const num = `${state.cfg.invoice.prefix}${String(state.cfg.invoice.next).padStart(5,'0')}`;
+  const inv = {
+    id: S.uid(),
+    number: num,
+    date: document.getElementById('invDate').value,
+    time: document.getElementById('invTime').value,
+    client: document.getElementById('invClient').value,
+    phone: document.getElementById('invPhone').value,
+    service: document.getElementById('invService').value,
+    tech: document.getElementById('invTech').value,
+    pay: document.getElementById('invPay').value,
+    amount: parseFloat(document.getElementById('invAmount').value) || 0,
+    ts: Date.now()
+  };
+  if(!inv.date || !inv.time || !inv.client || !inv.tech || !inv.amount){
+    return S.notify('Completa fecha, hora, cliente, técnica y monto.');
+  }
+  state.invoices.push(inv);
+  state.cfg.invoice.next++;
+  state.lastInvId = inv.id;
+  persistAll();
+  renderBillingTable();
+};
+
+document.getElementById('btnInvoicePDF').onclick = ()=>{
+  const inv = state.invoices.find(i=> i.id === state.lastInvId);
+  if(!inv){
+    return S.notify('Genera una factura primero.');
+  }
+  // Puedes usar tu método existente para PDF de factura individual
+  // Aquí un ejemplo sencillo
+  const html = `
+  <html><head><meta charset="utf-8"><title>${inv.number}</title><style>
+    @page{ size:A4; margin:24mm }
+    body{ font-family:Arial, sans-serif; color:#111; }
+    h1{ margin-bottom:8px; }
+    table{ width:100%; border-collapse:collapse; font-size:14px; }
+    th,td{ padding:8px; border-bottom:1px solid #ccc; text-align:left; }
+    th{ background:#f5f5f5; }
+  </style></head><body>
+    <h1>${state.cfg.invoice.title || 'Factura'}</h1>
+    <div>${inv.number}</div>
+    <div>Fecha: ${inv.date} ${inv.time}</div>
+    <div>Cliente: ${inv.client}</div>
+    <div>Técnica: ${inv.tech}</div>
+    <div>Método: ${inv.pay}</div>
+    <table>
+      <thead><tr><th>Servicio</th><th>Monto</th></tr></thead>
+      <tbody><tr><td>${inv.service}</td><td>$${(+inv.amount).toFixed(2)}</td></tr></tbody>
+      <tfoot><tr><th>Total</th><th>$${(+inv.amount).toFixed(2)}</th></tr></tfoot>
+    </table>
+    <div>${state.cfg.invoice.footer || ''}</div>
+  </body></html>
+  `;
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+};
+
+// ===== Exportaciones generales existentes (sin filtro de técnica) =====
+
+document.getElementById('btnExportInvCSV').onclick = ()=>{
+  const rows = [['Número','Fecha','Hora','Cliente','Técnica','Método','Monto'],
+    ...state.invoices.map(i=> [i.number,i.date,i.time,i.client,i.tech,i.pay,(+i.amount).toFixed(2)] )
+  ];
+  S.download(`cobros-${Date.now()}.csv`, S.csv(rows), 'text/csv');
+};
+
+document.getElementById('btnExportInvPDF').onclick = ()=>{
+  const rowsHtml = state.invoices.map(i=> `
+    <tr>
+      <td>${i.number}</td><td>${i.date}</td><td>${i.time}</td><td>${i.client}</td><td>${i.tech}</td><td>${i.pay}</td><td style="text-align:right">$${(+i.amount).toFixed(2)}</td>
+    </tr>
+  `).join('');
+  const total = state.invoices.reduce((acc,i)=> acc + (+i.amount || 0), 0);
+  const html = `
+  <html><head><meta charset="utf-8"><title>Historial de Cobros</title>
+    <style>
+      @page{ size:A4 landscape; margin:10mm }
+      body{ font-family:Arial, sans-serif; color:#111; }
+      table{ width:100%; border-collapse:collapse; font-size:12px; }
+      th,td{ padding:6px; border:1px solid #ccc; text-align:left; }
+      th{ background:#f5f5f5; }
+      tfoot td{ font-weight:700; background:#fafafa; }
+    </style>
+  </head><body>
+    <h1>Historial de Cobros</h1>
+    <table>
+      <thead><tr><th>Número</th><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Técnica</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr><td colspan="6">TOTAL</td><td style="text-align:right">$${total.toFixed(2)}</td></tr></tfoot>
+    </table>
+  </body></html>
+  `;
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+};
+
+// ===== Inicialización =====
+
+window.onload = ()=>{
+  refreshTechs();
+  renderBillingTable();
+  wireTechExportButtons();
+};
+
+</script>
+</body>
+</html>
