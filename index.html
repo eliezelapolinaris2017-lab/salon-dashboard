@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Salon Pro — Dashboard</title>
+<style>
+/* ====== CSS Base / Theming ====== */
+:root{
+  --bg:#0f0f12;
+  --fg:#ffffff;
+  --muted:#a7a7b1;
+  --primary:#6ee7b7;
+  --topbar:#15151b;
+  --card:#1a1b23;
+  --btn:#26283a;
+  --accent:#93c5fd;
+  --danger:#ef4444;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+
+  --menu-radius:16px;
+  --menu-blur:10px;
+  --menu-shadow:0 10px 30px rgba(0,0,0,.35);
+  --menu-card:rgba(255,255,255,.04);
+  --menu-border:1px solid rgba(255,255,255,.10);
+  --menu-cols:2;
+  --menu-icon:22px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg) no-repeat center/cover;
+  color:var(--fg);font-family:var(--font);
+}
+.topbar{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:center;gap:.6rem;
+  padding:.6rem .9rem;background:var(--topbar);border-bottom:1px solid #00000055;
+}
+.logo{ width:34px;height:34px;border-radius:6px;object-fit:contain;background:#0003;display:inline-block }
+.title{font-weight:700;letter-spacing:.2px}
+.spacer{flex:1}
+.btn{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.55rem .8rem;border-radius:10px;border:1px solid #00000066;
+  background:var(--btn);color:var(--fg);cursor:pointer;font-weight:600;
+}
+.btn.small{padding:.35rem .6rem;font-size:.9rem;border-radius:8px}
+.btn.ghost{background:transparent}
+.btn.primary{background:var(--accent)}
+.btn.ok{background:var(--ok)}
+.btn.warn{background:var(--warn)}
+.btn.danger{background:var(--danger)}
+.hidden{display:none !important}
+.container{max-width:1000px;margin:1rem auto;padding:0 1rem}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;padding:1rem;margin:.7rem 0;
+  box-shadow:0 12px 28px rgba(0,0,0,.28);
+}
+.grid{display:grid;gap:1rem}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+label{display:block;margin:.4rem 0 .2rem;color:var(--muted);font-size:.9rem}
+input,select,textarea{
+  width:100%;padding:.55rem .6rem;border-radius:10px;border:1px solid #00000055;background:#0f1017;color:var(--fg)
+}
+input[type="color"]{padding:.2rem;height:38px}
+.row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.kbd{background:#0002;border:1px solid #0003;border-radius:6px;padding:.1rem .35rem;font-size:.85rem}
+
+table{width:100%;border-collapse:collapse}
+th,td{padding:.55rem;border-bottom:1px solid #00000055}
+th{color:var(--muted);text-align:left}
+hr{border:none;border-top:1px solid #00000055;margin:1rem 0}
+footer{opacity:.8;text-align:center;padding:2rem 0}
+
+@media print{
+  body{background:#fff;color:#000}
+  .topbar,.btn,.no-print{display:none !important}
+  .card{border:1px solid #ddd}
+}
+</style>
+</head>
+<body>
+  <div class="topbar no-print">
+    <div class="title">Mi Salón</div>
+  </div>
+
+  <div class="container">
+    <section id="viewBilling">
+      <div class="card">
+        <h3>Historial de cobros</h3>
+        <div class="row">
+          <!-- Filtros para técnica única y periodo -->
+          <label for="invTechFilter">Técnica</label>
+          <select id="invTechFilter">
+            <option value="(todas)">(todas)</option>
+            <!-- Las técnicas se llenan dinámicamente -->
+          </select>
+
+          <label for="invPeriodFilter">Periodo</label>
+          <select id="invPeriodFilter">
+            <option value="all">Todo</option>
+            <option value="today">Hoy</option>
+            <option value="this_month">Este mes</option>
+            <option value="this_year">Este año</option>
+          </select>
+
+          <!-- Botones para exportar por técnica única seleccionada -->
+          <button class="btn small" id="btnTechDayPDF">🖨️ PDF Día (Técnica)</button>
+          <button class="btn small" id="btnTechDayCSV">📄 CSV Día (Técnica)</button>
+
+          <button class="btn small" id="btnTechHourPDF">🖨️ PDF Hora (Técnica)</button>
+          <button class="btn small" id="btnTechHourCSV">📄 CSV Hora (Técnica)</button>
+
+          <button class="btn small" id="btnTechMonthPDF">🖨️ PDF Mes (Técnica)</button>
+          <button class="btn small" id="btnTechMonthCSV">📄 CSV Mes (Técnica)</button>
+
+          <button class="btn small" id="btnTechYearPDF">🖨️ PDF Año (Técnica)</button>
+          <button class="btn small" id="btnTechYearCSV">📄 CSV Año (Técnica)</button>
+        </div>
+        <table id="tblInv">
+          <thead>
+            <tr><th>#</th><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Técnica</th><th>Método</th><th>Monto</th></tr>
+          </thead>
+          <tbody>
+            <!-- Se llenará dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+<script>
+// Datos de ejemplo / estado mínimo
+const state = {
+  techs: ['General','Laura','Pedro'],  // ejemplo de técnicas
+  invoices: [
+    { number:'INV-00001', date:'2025-09-15', time:'10:30', client:'Ana', tech:'Laura', pay:'Cash', amount:50 },
+    { number:'INV-00002', date:'2025-09-15', time:'11:00', client:'Luis', tech:'Pedro', pay:'Tarjeta', amount:80 },
+    { number:'INV-00003', date:'2025-09-14', time:'14:00', client:'María', tech:'Laura', pay:'Cash', amount:70 },
+    { number:'INV-00004', date:'2025-08-20', time:'09:00', client:'Carlos', tech:'General', pay:'Cash', amount:60 },
+    // más facturas...
+  ]
+};
+
+// Utilidades
+const S = {
+  csv: (rows)=> rows.map(r=> r.map(x=> `"${(x??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'),
+  download: (name, content, type='text/csv')=>{
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content],{type}));
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  pad: (n)=> n.toString().padStart(2,'0'),
+};
+
+function renderTechFilter(){
+  const sel = document.getElementById('invTechFilter');
+  sel.innerHTML = ['(todas)', ...state.techs].map(t=> `<option>${t}</option>`).join('');
+}
+
+function renderInvTable(){
+  const tblBody = document.getElementById('tblInv').querySelector('tbody');
+  tblBody.innerHTML = state.invoices.map(inv=>{
+    return `<tr>
+      <td>${inv.number}</td>
+      <td>${inv.date}</td>
+      <td>${inv.time}</td>
+      <td>${inv.client}</td>
+      <td>${inv.tech}</td>
+      <td>${inv.pay}</td>
+      <td>$${inv.amount.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function getPeriodRange(period){
+  const now = new Date();
+  const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear  = new Date(now.getFullYear(), 0, 1);
+  if(period==='today')      return {from: startOfDay, to: new Date(startOfDay.getFullYear(), startOfDay.getMonth(), startOfDay.getDate()+1)};
+  if(period==='this_month') return {from: startOfMonth, to: new Date(now.getFullYear(), now.getMonth()+1, 1)};
+  if(period==='this_year')  return {from: startOfYear, to: new Date(now.getFullYear()+1, 0, 1)};
+  return null; // 'all'
+}
+
+function groupInvoices(mode, opts={}){
+  const { tech=null, period='all' } = opts;
+  let list = state.invoices.slice(); // copia
+
+  // filtro por periodo
+  const pr = getPeriodRange(period);
+  if(pr){
+    list = list.filter(i=>{
+      const d = new Date(i.date);
+      return ( !pr.from || d >= pr.from ) && ( !pr.to || d < pr.to );
+    });
+  }
+
+  // filtro por técnica si se especifica
+  if(tech && tech !== '(todas)'){
+    list = list.filter(i=> i.tech === tech );
+  }
+
+  // agrupaciones según mode
+  const keyFn = mode === 'day'
+    ? i => i.date
+    : mode === 'hour'
+      ? i => i.time.slice(0,2) + ':00'
+      : mode === 'month'
+        ? i => i.date.slice(0,7)  // YYYY-MM
+        : mode === 'year'
+          ? i => i.date.slice(0,4)  // YYYY
+          : i => i.date;  // fallback
+
+  const map = {};
+  for(const inv of list){
+    const key = keyFn(inv);
+    const amt = +inv.amount || 0;
+    if(!map[key]) map[key] = { key, count:0, total:0 };
+    map[key].count += 1;
+    map[key].total += amt;
+  }
+
+  const arr = Object.values(map);
+  // ordenar por fecha o por total según convenga
+  arr.sort((a,b)=>{
+    // si queremos ordenar por fecha ascendente:
+    if(a.key < b.key) return -1;
+    if(a.key > b.key) return 1;
+    return 0;
+  });
+  return arr;
+}
+
+function exportGroupedCSV(mode, opts={}){
+  const nice = mode === 'day' ? 'Día'
+             : mode === 'hour' ? 'Hora'
+             : mode === 'month' ? 'Mes'
+             : mode === 'year' ? 'Año'
+             : mode;
+
+  const data = groupInvoices(mode, opts);
+  const rows = [
+    [nice, 'Cantidad', 'Total ($)'],
+    ...data.map(r=> [r.key, r.count, r.total.toFixed(2)])
+  ];
+  const techpart = opts.tech && opts.tech !== '(todas)' ? `-${opts.tech.replace(/\s+/g,'_')}` : '';
+  const periodpart = opts.period || 'all';
+  const fname = `cobros_${nice}${techpart}_${periodpart}.csv`;
+  S.download(fname, S.csv(rows), 'text/csv');
+}
+
+function exportGroupedPDF(mode, opts={}){
+  const nice = mode === 'day' ? 'Día'
+             : mode === 'hour' ? 'Hora'
+             : mode === 'month' ? 'Mes'
+             : mode === 'year' ? 'Año'
+             : mode;
+
+  const data = groupInvoices(mode, opts);
+  const sumTotal = data.reduce((a,x)=>a + x.total, 0);
+  const sumCount = data.reduce((a,x)=>a + x.count, 0);
+
+  const rowsHtml = data.map(r=> `
+    <tr>
+      <td>${r.key}</td>
+      <td style="text-align:right">${r.count}</td>
+      <td style="text-align:right">$${r.total.toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const titleExtra = opts.tech && opts.tech !== '(todas)' ? ` — Técnica: ${opts.tech}` : '';
+  const periodLabel = opts.period === 'today' ? 'Hoy'
+                     : opts.period === 'this_month' ? 'Este mes'
+                     : opts.period === 'this_year' ? 'Este año'
+                     : 'Todo';
+
+  const html = `
+  <html><head><meta charset="utf-8"><title>Cobros por ${nice}${titleExtra}</title>
+    <style>
+      @page{ size:A4 landscape; margin:12mm }
+      body{ font-family: sans-serif; color:#111; }
+      table{ width:100%; border-collapse:collapse; font-size:12px }
+      th, td{ border:1px solid #ccc; padding:6px; }
+      th{ background:#f3f3f3; text-align:left; }
+      tfoot td{ font-weight:700; background:#fafafa; }
+    </style>
+  </head><body>
+    <h1>Cobros por ${nice}${titleExtra}</h1>
+    <div>Periodo: ${periodLabel} · Generado: ${new Date().toLocaleString()}</div>
+    <table>
+      <thead><tr><th>${nice}</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Total ($)</th></tr></thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>TOTAL</td>
+          <td style="text-align:right">${sumCount}</td>
+          <td style="text-align:right">$${sumTotal.toFixed(2)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </body></html>
+  `;
+
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+// Lectura de los valores actuales de filtros
+function currentTech(){
+  const v = document.getElementById('invTechFilter').value;
+  return v || '(todas)';
+}
+function currentPeriod(){
+  const v = document.getElementById('invPeriodFilter').value;
+  return v || 'all';
+}
+
+// Asignar eventos a botones
+function wireExportButtons(){
+  document.getElementById('btnTechDayCSV').onclick = ()=> exportGroupedCSV('day' , { tech: currentTech(), period: currentPeriod() });
+  document.getElementById('btnTechDayPDF').onclick = ()=> exportGroupedPDF('day' , { tech: currentTech(), period: currentPeriod() });
+
+  document.getElementById('btnTechHourCSV').onclick = ()=> exportGroupedCSV('hour', { tech: currentTech(), period: currentPeriod() });
+  document.getElementById('btnTechHourPDF').onclick = ()=> exportGroupedPDF('hour', { tech: currentTech(), period: currentPeriod() });
+
+  document.getElementById('btnTechMonthCSV').onclick = ()=> exportGroupedCSV('month', { tech: currentTech(), period: currentPeriod() });
+  document.getElementById('btnTechMonthPDF').onclick = ()=> exportGroupedPDF('month', { tech: currentTech(), period: currentPeriod() });
+
+  document.getElementById('btnTechYearCSV').onclick = ()=> exportGroupedCSV('year', { tech: currentTech(), period: currentPeriod() });
+  document.getElementById('btnTechYearPDF').onclick = ()=> exportGroupedPDF('year', { tech: currentTech(), period: currentPeriod() });
+}
+
+// Inicialización
+function init(){
+  renderTechFilter();
+  renderInvTable();
+  wireExportButtons();
+}
+
+window.onload = init;
+
+</script>
+</body>
+</html>
